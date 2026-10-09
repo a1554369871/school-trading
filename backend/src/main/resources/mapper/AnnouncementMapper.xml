@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trading.mapper.AnnouncementMapper">
+
+    <select id="findAll" resultType="com.trading.entity.Announcement">
+        SELECT * FROM announcement ORDER BY publish_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM announcement
+    </select>
+
+    <select id="findById" resultType="com.trading.entity.Announcement">
+        SELECT * FROM announcement WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO announcement (publisher_id, title, content, status) 
+        VALUES (#{publisherId}, #{title}, #{content}, #{status})
+    </insert>
+
+    <update id="update">
+        UPDATE announcement 
+        SET title = #{title}, content = #{content}, status = #{status}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM announcement WHERE id = #{id}
+    </delete>
+
+</mapper>

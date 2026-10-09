@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trading.mapper.CategoryMapper">
+
+    <select id="findAll" resultType="com.trading.entity.Category">
+        SELECT c.id, c.category_name, COUNT(p.id) as product_count 
+        FROM category c 
+        LEFT JOIN product p ON c.id = p.category_id AND p.status = 1
+        GROUP BY c.id, c.category_name 
+        ORDER BY c.id
+    </select>
+
+    <select id="findById" resultType="com.trading.entity.Category">
+        SELECT * FROM category WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO category (category_name) VALUES (#{categoryName})
+    </insert>
+
+    <update id="update">
+        UPDATE category SET category_name = #{categoryName} WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM category WHERE id = #{id}
+    </delete>
+
+</mapper>

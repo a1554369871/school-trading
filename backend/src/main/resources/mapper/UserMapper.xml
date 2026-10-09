@@ -1,0 +1,145 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trading.mapper.UserMapper">
+
+    <resultMap id="userStatsMap" type="com.trading.dto.UserStats">
+        <id property="userId" column="user_id"/>
+        <result property="nickname" column="nickname"/>
+        <result property="publishCount" column="publish_count"/>
+        <result property="soldCount" column="sold_count"/>
+        <result property="buyCount" column="buy_count"/>
+        <result property="totalEarning" column="total_earning"/>
+        <result property="totalSpending" column="total_spending"/>
+    </resultMap>
+
+    <select id="findByUsername" resultType="com.trading.entity.User">
+        SELECT id, username, nickname, password, phone, email, avatar, role, status, register_time
+        FROM user WHERE username = #{username}
+    </select>
+
+    <select id="findById" resultType="com.trading.entity.User">
+        SELECT id, username, nickname, password, phone, email, avatar, role, status, register_time
+        FROM user WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO user (username, password, nickname, phone, email, avatar, role, status)
+        VALUES (#{username}, #{password}, #{nickname}, #{phone}, #{email}, #{avatar}, #{role}, #{status})
+    </insert>
+
+    <update id="update">
+        UPDATE user
+        <set>
+            <if test="nickname != null">nickname = #{nickname},</if>
+            <if test="phone != null">phone = #{phone},</if>
+            <if test="email != null">email = #{email},</if>
+            <if test="avatar != null">avatar = #{avatar},</if>
+            <if test="password != null">password = #{password},</if>
+            <if test="role != null">role = #{role},</if>
+            <if test="status != null">status = #{status},</if>
+        </set>
+        WHERE id = #{id}
+    </update>
+
+    <update id="updateStatus">
+        UPDATE user SET status = #{status} WHERE id = #{id}
+    </update>
+
+    <!-- SQL级别分页查询（替代Java内存分页） -->
+    <select id="findPage" resultType="com.trading.entity.User">
+        SELECT id, username, nickname, phone, email, avatar, role, status, register_time
+        FROM user
+        <where>
+            <if test="keyword != null and keyword != ''">
+                (nickname LIKE CONCAT('%', #{keyword}, '%')
+                OR username LIKE CONCAT('%', #{keyword}, '%')
+                OR phone LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY register_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <!-- 统计用户总数（支持关键词筛选） -->
+    <select id="countPage" resultType="int">
+        SELECT COUNT(*) FROM user
+        <where>
+            <if test="keyword != null and keyword != ''">
+                (nickname LIKE CONCAT('%', #{keyword}, '%')
+                OR username LIKE CONCAT('%', #{keyword}, '%')
+                OR phone LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+    </select>
+
+    <!-- 兼容旧版 -->
+    <select id="findAll" resultType="com.trading.entity.User">
+        SELECT id, username, nickname, phone, email, avatar, role, status, register_time
+        FROM user
+        <where>
+            <if test="keyword != null and keyword != ''">
+                (nickname LIKE CONCAT('%', #{keyword}, '%')
+                OR username LIKE CONCAT('%', #{keyword}, '%')
+                OR phone LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+        ORDER BY register_time DESC
+    </select>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM user
+        <where>
+            <if test="keyword != null and keyword != ''">
+                (nickname LIKE CONCAT('%', #{keyword}, '%')
+                OR username LIKE CONCAT('%', #{keyword}, '%')
+                OR phone LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+        </where>
+    </select>
+
+    <select id="getUserTradeStats" resultMap="userStatsMap">
+        SELECT
+            u.id AS user_id,
+            u.nickname,
+            COUNT(DISTINCT CASE WHEN p.user_id = u.id THEN p.id END) AS publish_count,
+            COUNT(DISTINCT CASE WHEN p.status = 2 THEN p.id END) AS sold_count,
+            COUNT(DISTINCT CASE WHEN o.buyer_id = u.id THEN o.id END) AS buy_count,
+            COALESCE(SUM(CASE WHEN o.seller_id = u.id THEN o.deal_price ELSE 0 END), 0) AS total_earning,
+            COALESCE(SUM(CASE WHEN o.buyer_id = u.id THEN o.deal_price ELSE 0 END), 0) AS total_spending
+        FROM user u
+        LEFT JOIN product p ON u.id = p.user_id
+        LEFT JOIN `order` o ON u.id = o.seller_id OR u.id = o.buyer_id
+        WHERE u.role = 0
+        GROUP BY u.id, u.nickname
+        ORDER BY total_earning DESC
+    </select>
+
+    <select id="getActiveUsersAboveAvg" resultMap="userStatsMap">
+        SELECT
+            sub.user_id,
+            sub.nickname,
+            sub.publish_count,
+            0 AS sold_count,
+            0 AS buy_count,
+            0 AS total_earning,
+            0 AS total_spending
+        FROM (
+            SELECT u.id AS user_id, u.nickname, COUNT(p.id) AS publish_count
+            FROM user u
+            LEFT JOIN product p ON u.id = p.user_id
+            WHERE u.role = 0
+            GROUP BY u.id, u.nickname
+        ) sub
+        WHERE sub.publish_count > (
+            SELECT AVG(cnt) FROM (
+                SELECT COUNT(p2.id) AS cnt
+                FROM user u2
+                LEFT JOIN product p2 ON u2.id = p2.user_id
+                WHERE u2.role = 0
+                GROUP BY u2.id
+            ) avg_sub
+        )
+        ORDER BY sub.publish_count DESC
+    </select>
+
+</mapper>

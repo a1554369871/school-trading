@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trading.mapper.CommentMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO comment (product_id, parent_id, commenter_id, replier_id, content)
+        VALUES (#{productId}, #{parentId}, #{commenterId}, #{replierId}, #{content})
+    </insert>
+
+    <delete id="deleteById">
+        DELETE FROM comment WHERE id = #{id}
+    </delete>
+
+    <!-- 查询评论归属（用于权限校验） -->
+    <select id="findOwnerById" resultType="map">
+        SELECT id, commenter_id FROM comment WHERE id = #{id}
+    </select>
+
+    <!--
+        JOIN 查询：获取评论列表（含评论者昵称、头像）
+        说明：LEFT JOIN user 表获取评论者信息，LEFT JOIN 自身获取被回复者信息。
+    -->
+    <select id="findByProductId" resultType="map">
+        SELECT
+            c.id,
+            c.content,
+            c.comment_time,
+            c.parent_id,
+            c.commenter_id,
+            u.nickname AS commenter_nickname,
+            u.avatar AS commenter_avatar,
+            ru.nickname AS replier_nickname
+        FROM comment c
+        INNER JOIN user u ON c.commenter_id = u.id
+        LEFT JOIN user ru ON c.replier_id = ru.id
+        WHERE c.product_id = #{productId}
+        ORDER BY c.comment_time DESC
+    </select>
+
+    <!--
+        GROUP BY：统计每个商品的评论数
+    -->
+    <select id="countByProduct" resultType="map">
+        SELECT
+            product_id,
+            COUNT(*) AS comment_count
+        FROM comment
+        GROUP BY product_id
+        ORDER BY comment_count DESC
+    </select>
+
+    <!--
+        子查询：查找评论数最多的商品
+        说明：先用子查询统计每个商品的评论数，再取 TOP N。
+    -->
+    <select id="findMostCommentedProducts" resultType="map">
+        SELECT
+            sub.product_id,
+            sub.comment_count,
+            p.product_name,
+            p.price
+        FROM (
+            SELECT product_id, COUNT(*) AS comment_count
+            FROM comment
+            GROUP BY product_id
+            ORDER BY comment_count DESC
+            LIMIT #{limit}
+        ) sub
+        INNER JOIN product p ON sub.product_id = p.id
+    </select>
+
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM comment
+    </select>
+
+    <!-- 管理员分页查询所有评论 -->
+    <select id="findAllPage" resultType="map">
+        SELECT
+            c.id,
+            c.content,
+            c.comment_time AS createTime,
+            c.parent_id,
+            c.commenter_id,
+            c.product_id,
+            u.username,
+            u.nickname,
+            p.product_name AS productName
+        FROM comment c
+        LEFT JOIN user u ON c.commenter_id = u.id
+        LEFT JOIN product p ON c.product_id = p.id
+        ORDER BY c.comment_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countAllPage" resultType="int">
+        SELECT COUNT(*) FROM comment
+    </select>
+</mapper>

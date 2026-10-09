@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trading.mapper.InteractionMapper">
+
+    <select id="findByUserAndProduct" resultType="com.trading.entity.Interaction">
+        SELECT * FROM interaction
+        WHERE user_id = #{userId} AND product_id = #{productId} AND type = #{type}
+    </select>
+
+    <insert id="insert">
+        INSERT INTO interaction (user_id, product_id, type)
+        VALUES (#{userId}, #{productId}, #{type})
+    </insert>
+
+    <delete id="deleteByUserAndProduct">
+        DELETE FROM interaction
+        WHERE user_id = #{userId} AND product_id = #{productId} AND type = #{type}
+    </delete>
+
+    <!--
+        GROUP BY + COUNT：统计商品的互动数据
+        说明：使用条件聚合（Conditional Aggregation），一次查询获取三种互动类型的数量。
+    -->
+    <select id="countByProduct" resultType="map">
+        SELECT
+            product_id,
+            COUNT(CASE WHEN type = 'like' THEN 1 END) AS like_count,
+            COUNT(CASE WHEN type = 'favorite' THEN 1 END) AS favorite_count,
+            COUNT(CASE WHEN type = 'want' THEN 1 END) AS want_count
+        FROM interaction
+        WHERE product_id = #{productId}
+        GROUP BY product_id
+    </select>
+
+    <select id="checkInteraction" resultType="int">
+        SELECT COUNT(*) FROM interaction
+        WHERE user_id = #{userId} AND product_id = #{productId} AND type = #{type}
+    </select>
+
+
+    <select id="findProductIdsByUserAndType" resultType="int">
+        SELECT product_id FROM interaction
+        WHERE user_id = #{userId} AND type = #{type}
+    </select>
+
+    
+</mapper>

@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trading.mapper.PrivateMessageMapper">
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO private_message (sender_id, receiver_id, content, send_time, is_read)
+        VALUES (#{senderId}, #{receiverId}, #{content}, NOW(), 0)
+    </insert>
+
+    <select id="findConversation" resultType="map">
+        SELECT
+            pm.*,
+            su.nickname AS sender_nickname,
+            su.avatar AS sender_avatar,
+            ru.nickname AS receiver_nickname
+        FROM private_message pm
+        INNER JOIN user su ON pm.sender_id = su.id
+        INNER JOIN user ru ON pm.receiver_id = ru.id
+        WHERE (pm.sender_id = #{user1Id} AND pm.receiver_id = #{user2Id})
+           OR (pm.sender_id = #{user2Id} AND pm.receiver_id = #{user1Id})
+        ORDER BY pm.send_time ASC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countConversation" resultType="int">
+        SELECT COUNT(*) FROM private_message
+        WHERE (sender_id = #{user1Id} AND receiver_id = #{user2Id})
+           OR (sender_id = #{user2Id} AND receiver_id = #{user1Id})
+    </select>
+
+    <select id="getRecentConversations" resultType="map">
+        SELECT
+            pm.id, pm.sender_id, pm.receiver_id, pm.content, pm.send_time, pm.is_read,
+            CASE
+                WHEN pm.sender_id = #{userId} THEN ru.nickname
+                ELSE su.nickname
+            END AS other_nickname,
+            CASE
+                WHEN pm.sender_id = #{userId} THEN ru.avatar
+                ELSE su.avatar
+            END AS other_avatar,
+            CASE
+                WHEN pm.sender_id = #{userId} THEN pm.receiver_id
+                ELSE pm.sender_id
+            END AS other_id,
+            COALESCE(unread_msg.unread, 0) AS unread_count
+        FROM private_message pm
+        INNER JOIN (
+            SELECT
+                CASE
+                    WHEN sender_id = #{userId} THEN receiver_id
+                    ELSE sender_id
+                END AS other_user_id,
+                MAX(id) AS max_id
+            FROM private_message
+            WHERE (sender_id = #{userId} OR receiver_id = #{userId})
+              AND NOT (sender_id = #{userId} AND receiver_id = #{userId})
+            GROUP BY
+                CASE
+                    WHEN sender_id = #{userId} THEN receiver_id
+                    ELSE sender_id
+                END
+        ) latest ON pm.id = latest.max_id
+        INNER JOIN user su ON pm.sender_id = su.id
+        INNER JOIN user ru ON pm.receiver_id = ru.id
+        LEFT JOIN (
+            SELECT sender_id, COUNT(*) as unread
+            FROM private_message
+            WHERE receiver_id = #{userId} AND is_read = 0
+            GROUP BY sender_id
+        ) unread_msg ON unread_msg.sender_id = latest.other_user_id
+        ORDER BY pm.send_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countRecentConversations" resultType="int">
+        SELECT COUNT(DISTINCT
+            CASE
+                WHEN sender_id = #{userId} THEN receiver_id
+                ELSE sender_id
+            END
+        )
+        FROM private_message
+        WHERE (sender_id = #{userId} OR receiver_id = #{userId})
+          AND NOT (sender_id = #{userId} AND receiver_id = #{userId})
+    </select>
+
+    <update id="markConversationAsRead">
+        UPDATE private_message
+        SET is_read = 1
+        WHERE sender_id = #{otherId}
+          AND receiver_id = #{userId}
+          AND is_read = 0
+    </update>
+
+</mapper>

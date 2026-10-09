@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trading.mapper.AddressMapper">
+
+    <select id="findByUserId" resultType="com.trading.entity.Address">
+        SELECT * FROM address WHERE user_id = #{userId} ORDER BY is_default DESC, id DESC
+    </select>
+
+    <select id="findById" resultType="com.trading.entity.Address">
+        SELECT * FROM address WHERE id = #{id}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO address (user_id, consignee, phone, address, is_default)
+        VALUES (#{userId}, #{consignee}, #{phone}, #{address}, #{isDefault})
+    </insert>
+
+    <update id="update">
+        UPDATE address
+        SET consignee = #{consignee}, phone = #{phone}, address = #{address}, is_default = #{isDefault}
+        WHERE id = #{id}
+    </update>
+
+    <delete id="deleteById">
+        DELETE FROM address WHERE id = #{id}
+    </delete>
+
+    <update id="clearDefault">
+        UPDATE address SET is_default = 0 WHERE user_id = #{userId}
+    </update>
+
+</mapper>

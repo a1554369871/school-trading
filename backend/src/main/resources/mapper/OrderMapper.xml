@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trading.mapper.OrderMapper">
+
+    <select id="findById" resultType="com.trading.entity.Order">
+        SELECT * FROM `order` WHERE id = #{id}
+    </select>
+
+    <select id="findByOrderNo" resultType="com.trading.entity.Order">
+        SELECT * FROM `order` WHERE order_no = #{orderNo}
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO `order` (order_no, product_id, buyer_id, seller_id, deal_price, status, address_id, remark, delivery_method)
+        VALUES (#{orderNo}, #{productId}, #{buyerId}, #{sellerId}, #{dealPrice}, #{status}, #{addressId}, #{remark}, #{deliveryMethod})
+    </insert>
+
+    <update id="updateStatus">
+        UPDATE `order` SET status = #{status} WHERE id = #{id}
+    </update>
+
+    <select id="findDetailById" resultType="map">
+        SELECT
+            o.id,
+            o.order_no AS orderNo,
+            o.deal_price AS dealPrice,
+            o.status,
+            o.create_time AS createTime,
+            o.pay_time AS payTime,
+            o.ship_time AS shipTime,
+            o.confirm_time AS confirmTime,
+            o.cancel_time AS cancelTime,
+            o.delivery_method AS deliveryMethod,
+            o.remark,
+            o.buyer_id AS buyerId,
+            o.seller_id AS sellerId,
+            buyer.nickname AS buyerNickname,
+            buyer.avatar AS buyerAvatar,
+            buyer.phone AS buyerPhone,
+            seller.nickname AS sellerNickname,
+            seller.avatar AS sellerAvatar,
+            seller.phone AS sellerPhone,
+            p.id AS productId,
+            p.product_name AS productName,
+            p.description AS productDescription,
+            p.price AS productPrice,
+            p.product_image AS productImage
+        FROM `order` o
+        INNER JOIN user buyer ON o.buyer_id = buyer.id
+        INNER JOIN user seller ON o.seller_id = seller.id
+        INNER JOIN product p ON o.product_id = p.id
+        WHERE o.id = #{id}
+    </select>
+
+    <select id="findByBuyerId" resultType="map">
+        SELECT
+            o.id,
+            o.order_no AS orderNo,
+            o.deal_price AS dealPrice,
+            o.status,
+            o.create_time AS createTime,
+            o.delivery_method AS deliveryMethod,
+            o.remark,
+            seller.id AS sellerId,
+            seller.nickname AS sellerNickname,
+            seller.avatar AS sellerAvatar,
+            p.id AS productId,
+            p.product_name AS productName,
+            p.product_image AS productImage
+        FROM `order` o
+        INNER JOIN user seller ON o.seller_id = seller.id
+        INNER JOIN product p ON o.product_id = p.id
+        WHERE o.buyer_id = #{buyerId}
+        ORDER BY o.create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countByBuyerId" resultType="int">
+        SELECT COUNT(*) FROM `order` WHERE buyer_id = #{buyerId}
+    </select>
+
+    <select id="findBySellerId" resultType="map">
+        SELECT
+            o.id,
+            o.order_no AS orderNo,
+            o.deal_price AS dealPrice,
+            o.status,
+            o.create_time AS createTime,
+            o.delivery_method AS deliveryMethod,
+            o.remark,
+            buyer.id AS buyerId,
+            buyer.nickname AS buyerNickname,
+            buyer.avatar AS buyerAvatar,
+            p.id AS productId,
+            p.product_name AS productName,
+            p.product_image AS productImage
+        FROM `order` o
+        INNER JOIN user buyer ON o.buyer_id = buyer.id
+        INNER JOIN product p ON o.product_id = p.id
+        WHERE o.seller_id = #{sellerId}
+        ORDER BY o.create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countBySellerId" resultType="int">
+        SELECT COUNT(*) FROM `order` WHERE seller_id = #{sellerId}
+    </select>
+
+    <select id="getMonthlyStats" resultType="map">
+        SELECT
+            DATE_FORMAT(create_time, '%Y-%m') AS month,
+            COUNT(*) AS orderCount,
+            COALESCE(SUM(deal_price), 0) AS totalAmount
+        FROM `order`
+        GROUP BY DATE_FORMAT(create_time, '%Y-%m')
+        ORDER BY month DESC
+    </select>
+
+    <select id="getSellerRevenue" resultType="map">
+        SELECT
+            o.seller_id AS sellerId,
+            u.nickname AS sellerNickname,
+            COUNT(*) AS orderCount,
+            SUM(o.deal_price) AS totalRevenue
+        FROM `order` o
+        INNER JOIN user u ON o.seller_id = u.id
+        WHERE o.status = 3
+        GROUP BY o.seller_id, u.nickname
+        ORDER BY totalRevenue DESC
+    </select>
+
+    <select id="findAll" resultType="map">
+        SELECT
+            o.id,
+            o.order_no AS orderNo,
+            o.deal_price AS dealPrice,
+            o.status,
+            o.create_time AS createTime,
+            o.delivery_method AS deliveryMethod,
+            o.remark,
+            o.buyer_id AS buyerId,
+            o.seller_id AS sellerId,
+            buyer.nickname AS buyerNickname,
+            seller.nickname AS sellerNickname,
+            p.product_name AS productName,
+            p.product_image AS productImage
+        FROM `order` o
+        INNER JOIN user buyer ON o.buyer_id = buyer.id
+        INNER JOIN user seller ON o.seller_id = seller.id
+        INNER JOIN product p ON o.product_id = p.id
+        ORDER BY o.create_time DESC
+        LIMIT #{offset}, #{pageSize}
+    </select>
+
+    <select id="countAll" resultType="int">
+        SELECT COUNT(*) FROM `order`
+    </select>
+
+</mapper>
