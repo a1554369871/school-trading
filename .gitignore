@@ -1,0 +1,29 @@
+# ---------- Node / 前端 ----------
+node_modules/
+frontend/dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.env
+.env.local
+.env.*.local
+
+# ---------- Java / Maven / 后端 ----------
+backend/target/
+*.class
+hs_err_pid*
+*.log
+
+# ---------- 运行时上传文件（你选择不保留） ----------
+backend/uploads/
+
+# ---------- IDE ----------
+.idea/
+*.iml
+.vscode/
+
+# ---------- 操作系统 ----------
+.DS_Store
+Thumbs.db
+desktop.ini

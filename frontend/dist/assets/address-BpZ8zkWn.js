@@ -1,1 +1,0 @@
-import{H as s}from"./index-CvXcsrBG.js";function t(){return s.get("/addresses")}function a(e){return s.post("/addresses",e)}function n(e,d){return s.put(`/addresses/${e}`,d)}function u(e){return s.delete(`/addresses/${e}`)}export{a,u as d,t as g,n as u};

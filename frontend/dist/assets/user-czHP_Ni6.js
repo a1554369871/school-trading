@@ -1,1 +1,0 @@
-import{H as r}from"./index-CvXcsrBG.js";function t(e){return r.put("/users/me",e)}function u(e){return r.put("/users/me/password",e)}function o(e){const s=new FormData;return s.append("file",e),r.post("/users/upload",s)}export{t as a,u as c,o as u};
