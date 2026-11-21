@@ -120,7 +120,7 @@ async function fetchCategories() {
 
 async function fetchProducts() {
   try {
-    const res = await getProducts({ page: page.value, pageSize: 10, keyword: searchKeyword.value || undefined })
+    const res = await getProducts({ page: page.value, pageSize: 10, keyword: searchKeyword.value || undefined, admin: true })
     products.value = res.data.list || []
     totalPages.value = Math.ceil((res.data.total || 0) / 10)
   } catch (e) {

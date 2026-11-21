@@ -105,9 +105,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, watch } from 'vue'
+import { ref, onMounted, onUnmounted, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useUserStore } from '@/store/user'
+import { supabase } from '@/lib/supabase'
 import { sendMessage, getConversation, getRecentChats, markConversationRead, getUnreadCount } from '@/api/message'
 
 const route = useRoute()
@@ -115,11 +116,12 @@ const userStore = useUserStore()
 
 const recentChats = ref([])
 const messages = ref([])
-const targetUserId = ref(route.params.userId ? Number(route.params.userId) : null)
+const targetUserId = ref(route.params.userId ? String(route.params.userId) : null)
 const targetNickname = ref('')
 const targetAvatar = ref('')
 const newMessage = ref('')
 const messagesContainer = ref(null)
+let realtimeChannel = null
 
 function formatTime(time) {
   if (!time) return '-'
@@ -147,6 +149,26 @@ async function fetchRecentChats() {
   } catch (e) {
     console.error('获取聊天列表失败:', e)
   }
+}
+
+function subscribeRealtime() {
+  const uid = userStore.user?.id
+  if (!uid) return
+
+  realtimeChannel = supabase
+    .channel(`messages-${uid}`)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${uid}` },
+      async (payload) => {
+        const incoming = payload.new
+        if (targetUserId.value && incoming.sender_id === targetUserId.value) {
+          await fetchConversation(targetUserId.value)
+        }
+        await fetchRecentChats()
+      },
+    )
+    .subscribe()
 }
 
 async function openChat(userId, nickname, avatar) {
@@ -189,7 +211,7 @@ async function handleSend() {
 
 watch(() => route.params.userId, (newVal) => {
   if (newVal) {
-    const userId = Number(newVal)
+    const userId = String(newVal)
     targetUserId.value = userId
     fetchConversation(userId)
   }
@@ -206,6 +228,14 @@ onMounted(async () => {
     }
     await fetchConversation(targetUserId.value)
     await markConversationRead(targetUserId.value)
+  }
+  subscribeRealtime()
+})
+
+onUnmounted(() => {
+  if (realtimeChannel) {
+    supabase.removeChannel(realtimeChannel)
+    realtimeChannel = null
   }
 })
 </script>

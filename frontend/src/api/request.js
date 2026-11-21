@@ -1,56 +1,65 @@
-import axios from 'axios'
-import { useUserStore } from '@/store/user'
-import router from '@/router'
+/**
+ * Supabase 版请求层。保留旧后端 { code, message, data } 的返回结构，
+ * 这样所有页面里的 res.data / res.data.list 都不需要改。
+ */
 
-const request = axios.create({
-  baseURL: '/api',
-  timeout: 10000
-})
+export function ok(data = null) {
+  return { code: 200, message: 'success', data }
+}
 
-// 请求拦截器
-request.interceptors.request.use(
-  (config) => {
-    const userStore = useUserStore()
-    if (userStore.token) {
-      config.headers.Authorization = `Bearer ${userStore.token}`
-    }
-    return config
-  },
-  (error) => {
-    return Promise.reject(error)
+export function pageResult(list, total = 0, pageNum = 1, pageSize = 10) {
+  const safeSize = Number(pageSize) || 10
+  return ok({
+    list: list || [],
+    total: Number(total) || 0,
+    pageNum: Number(pageNum) || 1,
+    pageSize: safeSize,
+    pages: Math.ceil((Number(total) || 0) / safeSize),
+  })
+}
+
+export function fail(message = '请求失败') {
+  const error = new Error(message)
+  error.code = 500
+  throw error
+}
+
+const MESSAGES = {
+  23505: '数据已存在',
+  23503: '关联数据不存在或仍被使用',
+  42501: '没有操作权限',
+  PGRST116: '数据不存在',
+}
+
+/** 把 supabase-js 的 error 转成中文 Error */
+export function raise(error, fallback = '请求失败') {
+  if (!error) return
+  const code = error.code || ''
+  const text = MESSAGES[code] || error.message || fallback
+  const wrapped = new Error(text)
+  wrapped.code = code
+  wrapped.details = error.details
+  wrapped.hint = error.hint
+  throw wrapped
+}
+
+/** 统一分页参数：同时兼容旧的 page 和 pageNum */
+export function readPage(params = {}, defaultSize = 10) {
+  const pageNum = Math.max(1, Number(params.pageNum || params.page || 1) || 1)
+  const pageSize = Math.max(1, Number(params.pageSize || defaultSize) || defaultSize)
+  return {
+    pageNum,
+    pageSize,
+    from: (pageNum - 1) * pageSize,
+    to: pageNum * pageSize - 1,
   }
-)
+}
 
-// 响应拦截器
-request.interceptors.response.use(
-  (response) => {
-    const res = response.data
-    if (res.code !== 200) {
-      return Promise.reject(new Error(res.message || '请求失败'))
-    }
-    return res
-  },
-  (error) => {
-    if (error.response) {
-      const { status, data } = error.response
-      // 提取后端返回的业务错误消息
-      const msg = data?.message || data?.msg || ''
-      if (status === 401) {
-        const userStore = useUserStore()
-        userStore.logout()
-        router.push({ name: 'Login', query: { redirect: router.currentRoute.value.fullPath } })
-        return Promise.reject(new Error(msg || '登录已过期，请重新登录'))
-      } else if (status === 403) {
-        return Promise.reject(new Error(msg || '没有权限访问'))
-      } else if (status === 400) {
-        return Promise.reject(new Error(msg || '请求参数错误'))
-      } else if (status === 500) {
-        return Promise.reject(new Error(msg || '服务器内部错误'))
-      }
-      return Promise.reject(new Error(msg || `请求失败 (${status})`))
-    }
-    return Promise.reject(error)
-  }
-)
+/** 把用户输入转成安全的 ilike 关键字，避免破坏 PostgREST or 表达式 */
+export function likeKeyword(keyword) {
+  return String(keyword || '')
+    .trim()
+    .replace(/[,()%]/g, ' ')
+}
 
-export default request
+export default { ok, pageResult, fail, raise, readPage, likeKeyword }

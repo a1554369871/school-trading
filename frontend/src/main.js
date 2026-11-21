@@ -4,12 +4,21 @@ import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import App from './App.vue'
 import router from './router'
+import { useUserStore } from './store/user'
 import './style.css'
 
 const app = createApp(App)
+const pinia = createPinia()
 
-app.use(createPinia())
-app.use(router)
+app.use(pinia)
 app.use(ElementPlus)
 
-app.mount('#app')
+const userStore = useUserStore(pinia)
+
+userStore
+  .initAuth()
+  .catch(() => {})
+  .finally(() => {
+    app.use(router)
+    app.mount('#app')
+  })

@@ -1,7 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { login as apiLogin, register as apiRegister, getUserInfo } from '../api/auth'
-import { getUnreadCount as apiGetUnreadCount } from '../api/message'
+import { supabase } from '@/lib/supabase'
+import {
+  login as apiLogin,
+  register as apiRegister,
+  getUserInfo,
+} from '@/api/auth'
+import { getUnreadCount } from '@/api/message'
 
 export const useUserStore = defineStore('user', () => {
   const token = ref(localStorage.getItem('token') || '')
@@ -11,56 +16,95 @@ export const useUserStore = defineStore('user', () => {
   const isLoggedIn = computed(() => !!token.value)
   const isAdmin = computed(() => user.value?.role === 1)
 
-  function setToken(newToken) {
-    token.value = newToken
-    localStorage.setItem('token', newToken)
+  function setToken(value) {
+    token.value = value || ''
+    if (value) localStorage.setItem('token', value)
+    else localStorage.removeItem('token')
   }
 
-  function setUser(newUser) {
-    user.value = newUser
+  /** 应用启动时恢复 Supabase 会话并拉取当前用户 */
+  async function initAuth() {
+    const { data } = await supabase.auth.getSession()
+    if (data.session) {
+      setToken(data.session.access_token)
+      try {
+        await fetchUserInfo()
+      } catch {
+        // 会话失效或账号被冻结时 fetchUserInfo 内部已登出
+      }
+    } else {
+      setToken('')
+      user.value = null
+    }
+
+    supabase.auth.onAuthStateChange((_event, session) => {
+      setToken(session?.access_token || '')
+      if (!session) {
+        user.value = null
+        unreadCount.value = 0
+      }
+    })
   }
 
   async function login(username, password) {
     const res = await apiLogin({ username, password })
     setToken(res.data.token)
-    await fetchUser()
+    await fetchUserInfo()
+    return res
   }
 
   async function register(data) {
-    await apiRegister(data)
-  }
-
-  async function fetchUser() {
-    try {
-      const res = await getUserInfo()
-      user.value = res.data
-    } catch (e) {
-      logout()
-    }
+    return apiRegister(data)
   }
 
   async function fetchUserInfo() {
-    await fetchUser()
+    try {
+      const res = await getUserInfo()
+      if (res.data?.status === 0) {
+        await logout()
+        throw new Error('账号已被冻结')
+      }
+      user.value = res.data
+      await fetchUnreadCount()
+      return res.data
+    } catch (error) {
+      await logout()
+      throw error
+    }
   }
 
   async function fetchUnreadCount() {
-    if (!token.value) { unreadCount.value = 0; return }
     try {
-      const res = await apiGetUnreadCount()
+      const res = await getUnreadCount()
       unreadCount.value = res.data || 0
-    } catch { /* ignore */ }
+    } catch {
+      unreadCount.value = 0
+    }
   }
 
-  function setUnreadCount(val) {
-    unreadCount.value = val
-  }
-
-  function logout() {
-    token.value = ''
+  async function logout() {
+    try {
+      await supabase.auth.signOut()
+    } catch {
+      // 忽略网络错误，本地状态照常清理
+    }
+    setToken('')
     user.value = null
     unreadCount.value = 0
-    localStorage.removeItem('token')
   }
 
-  return { token, user, unreadCount, isLoggedIn, isAdmin, setToken, setUser, login, register, fetchUser, fetchUserInfo, fetchUnreadCount, setUnreadCount, logout }
+  return {
+    token,
+    user,
+    unreadCount,
+    isLoggedIn,
+    isAdmin,
+    setToken,
+    initAuth,
+    login,
+    register,
+    fetchUserInfo,
+    fetchUnreadCount,
+    logout,
+  }
 })
