@@ -117,6 +117,14 @@
                   >
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                   </button>
+                  <button
+                    v-if="product.status === 0"
+                    @click="handleDelete(product)"
+                    class="admin-icon-btn admin-icon-btn-danger"
+                    title="删除"
+                  >
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                  </button>
                 </div>
               </div>
             </div>
@@ -130,7 +138,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { getMyProducts, updateProductStatus } from '@/api/product'
+import { getMyProducts, updateProductStatus, deleteProduct } from '@/api/product'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const router = useRouter()
@@ -138,7 +146,7 @@ const products = ref([])
 const loading = ref(false)
 
 function getStatusText(status) {
-  const map = { 0: '已下架', 1: '在售', 2: '已售出' }
+  const map = { 0: '已下架', 1: '在售', 2: '已售出', 3: '已预留' }
   return map[status] || '未知'
 }
 
@@ -195,6 +203,23 @@ async function handleReonline(product) {
     await loadData()
   } catch (e) {
     ElMessage.error(e.message || '操作失败')
+  }
+}
+
+async function handleDelete(product) {
+  try {
+    await ElMessageBox.confirm(
+      `确认删除「${product.productName}」？删除后不可恢复。`,
+      '删除确认',
+      { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'warning' }
+    )
+    await deleteProduct(product.id)
+    ElMessage.success('已删除')
+    await loadData()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error(e.message || '删除失败')
+    }
   }
 }
 

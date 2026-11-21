@@ -57,7 +57,7 @@
               <td class="admin-td text-[#3F3F46]">{{ getCategoryName(product.categoryId) }}</td>
               <td class="admin-td">
                 <span :class="product.status === 1 ? 'admin-badge-green' : 'admin-badge-gray'">
-                  {{ product.status === 1 ? '在售' : product.status === 3 ? '已下架' : '未知' }}
+                  {{ getStatusText(product.status) }}
                 </span>
               </td>
               <td class="admin-td text-[#3F3F46] text-xs">{{ formatDateTime(product.publishTime) }}</td>
@@ -65,7 +65,7 @@
                 <div class="flex items-center gap-1">
                   <button @click="viewProduct(product.id)" class="admin-icon-btn" title="查看"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg></button>
                   <button v-if="product.status === 1" @click="toggleProductStatus(product)" class="admin-icon-btn" title="下架"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg></button>
-                  <button v-else-if="product.status === 3" @click="toggleProductStatus(product)" class="admin-icon-btn admin-icon-btn-green" title="上架"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>
+                  <button v-else-if="product.status === 0" @click="toggleProductStatus(product)" class="admin-icon-btn admin-icon-btn-green" title="上架"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></button>
                   <button @click="handleDelete(product.id)" class="admin-icon-btn admin-icon-btn-danger" title="删除"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg></button>
                 </div>
               </td>
@@ -106,6 +106,11 @@ function getCategoryName(categoryId) {
   return categoryMap.value[categoryId] || '-'
 }
 
+function getStatusText(status) {
+  const map = { 0: '已下架', 1: '在售', 2: '已售出', 3: '已预留' }
+  return map[status] || '未知'
+}
+
 async function fetchCategories() {
   try {
     const res = await getCategories()
@@ -133,7 +138,7 @@ function changePage(p) { page.value = p; fetchProducts() }
 function viewProduct(id) { router.push(`/products/${id}`) }
 
 async function toggleProductStatus(product) {
-  const newStatus = product.status === 3 ? 1 : 3
+  const newStatus = product.status === 1 ? 0 : 1
   const statusText = newStatus === 1 ? '上架' : '下架'
   try {
     await ElMessageBox.confirm(`确定要${statusText}商品 "${product.productName}" 吗？`, '操作确认', { confirmButtonText: statusText, cancelButtonText: '取消', type: 'warning' })

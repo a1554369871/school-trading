@@ -174,10 +174,23 @@ export async function updateProductStatus(id, status) {
   return ok(null)
 }
 
-/** 旧后端的删除是逻辑下架 */
-export async function deleteProduct(id) {
+/** 下架：只改状态，商品仍保留在“我的发布”里 */
+export async function offshelfProduct(id) {
   const { error } = await supabase.from('products').update({ status: 0 }).eq('id', id)
   raise(error, '操作失败')
+  return ok(null)
+}
+
+/** 删除：物理删除商品；有订单记录的商品不允许删除，避免破坏订单历史 */
+export async function deleteProduct(id) {
+  const { data, error } = await supabase
+    .from('products')
+    .delete()
+    .eq('id', id)
+    .select('id')
+  if (error?.code === '23503') throw new Error('该商品已有订单记录，不能删除')
+  raise(error, '删除失败')
+  if (!data?.length) throw new Error('商品不存在或无权删除')
   return ok(null)
 }
 

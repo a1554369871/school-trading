@@ -176,7 +176,13 @@ export async function updateProductStatus(id, status) {
 }
 
 export async function deleteAdminProduct(id) {
-  const { error } = await supabase.from('products').update({ status: 0 }).eq('id', id)
-  raise(error, '操作失败')
+  const { data, error } = await supabase
+    .from('products')
+    .delete()
+    .eq('id', id)
+    .select('id')
+  if (error?.code === '23503') throw new Error('该商品已有订单记录，不能删除')
+  raise(error, '删除失败')
+  if (!data?.length) throw new Error('商品不存在或无权删除')
   return ok(null)
 }

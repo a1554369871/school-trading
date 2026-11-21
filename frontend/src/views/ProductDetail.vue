@@ -316,7 +316,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useUserStore } from '../store/user'
-import { getProductDetail, interactProduct, deleteProduct } from '../api/product'
+import { getProductDetail, interactProduct, offshelfProduct } from '../api/product'
 import { getComments, addComment, deleteComment } from '../api/comment'
 import { createOrder } from '../api/order'
 import { getAddresses } from '../api/address'
@@ -481,7 +481,7 @@ const submitOrder = async () => {
 const handleOffshelf = async () => {
   try {
     await ElMessageBox.confirm('确认下架此商品？', '提示', { type: 'warning' })
-    await deleteProduct(detail.value.product.id)
+    await offshelfProduct(detail.value.product.id)
     ElMessage.success('已下架')
     await loadDetail()
   } catch (e) {
